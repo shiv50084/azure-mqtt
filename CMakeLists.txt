@@ -1,4 +1,4 @@
-gitcmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.6)
 
 project(azure_mqtt)
 
