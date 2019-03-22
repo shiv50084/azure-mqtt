@@ -70,3 +70,11 @@ add_library(wolfssl ${wolfssl_src} ${wolfcrypt_src})
 target_compile_definitions(wolfssl PRIVATE WOLFSSL_USER_SETTINGS)
 target_include_directories(wolfssl PUBLIC ${CMAKE_CURRENT_LIST_DIR}/wolfssl
     ${CMAKE_CURRENT_LIST_DIR}/wolfssl_init)
+
+set(wolfmqtt_src
+    ${CMAKE_CURRENT_LIST_DIR}/wolfmqtt/src/mqtt_client.c
+    ${CMAKE_CURRENT_LIST_DIR}/wolfmqtt/src/mqtt_packet.c
+    ${CMAKE_CURRENT_LIST_DIR}/wolfmqtt/src/mqtt_socket.c)
+add_library(wolfmqtt ${wolfmqtt_src})
+target_compile_definitions(wolfmqtt PRIVATE WOLFMQTT_USER_SETTINGS)
+target_include_directories(wolfmqtt PUBLIC ${CMAKE_CURRENT_LIST_DIR}/wolfmqtt)
