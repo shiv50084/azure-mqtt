@@ -448,11 +448,11 @@ extern "C" {
 
 /* Override Current Time */
 /* Allows custom "custom_time()" function to be used for benchmark */
-#define WOLFSSL_USER_CURRTIME
+//#define WOLFSSL_USER_CURRTIME
 #define WOLFSSL_GMTIME
-#define USER_TICKS
-extern unsigned long my_time(unsigned long* timer);
-#define XTIME my_time
+//#define USER_TICKS
+//extern unsigned long my_time(unsigned long* timer);
+//#define XTIME my_time
 
 
 /* ------------------------------------------------------------------------- */
@@ -461,10 +461,10 @@ extern unsigned long my_time(unsigned long* timer);
 
 /* Seed Source */
 /* Size of returned HW RNG value */
-#define CUSTOM_RAND_TYPE      unsigned int
-extern unsigned int my_rng_seed_gen(void);
-#undef  CUSTOM_RAND_GENERATE
-#define CUSTOM_RAND_GENERATE  my_rng_seed_gen
+//#define CUSTOM_RAND_TYPE      unsigned int
+//extern unsigned int my_rng_seed_gen(void);
+//#undef  CUSTOM_RAND_GENERATE
+//#define CUSTOM_RAND_GENERATE  my_rng_seed_gen
 
 /* Choose RNG method */
 #if 1
@@ -594,8 +594,8 @@ extern unsigned int my_rng_seed_gen(void);
 #undef  NO_MAIN_DRIVER
 #define NO_MAIN_DRIVER
 
-#undef  NO_DEV_RANDOM
-#define NO_DEV_RANDOM
+//#undef  NO_DEV_RANDOM
+//#define NO_DEV_RANDOM
 
 #undef  NO_DSA
 #define NO_DSA
