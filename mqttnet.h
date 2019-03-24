@@ -1,4 +1,4 @@
-/* options.h
+/* mqttnet.h
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -19,23 +19,26 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
-
-/* default blank options for autoconf */
-
-#ifndef WOLFMQTT_OPTIONS_H
-#define WOLFMQTT_OPTIONS_H
-
+#ifndef WOLFMQTT_NET_H
+#define WOLFMQTT_NET_H
 
 #ifdef __cplusplus
-extern "C" {
-#endif
-
-#define WOLFMQTT_NONBLOCK
-#define ENABLE_MQTT_TLS
-
-#ifdef __cplusplus
-}
+    extern "C" {
 #endif
 
 
-#endif /* WOLFMQTT_OPTIONS_H */
+/* Default MQTT host broker to use, when none is specified in the examples */
+#define DEFAULT_MQTT_HOST       "iot.eclipse.org" /* broker.hivemq.com */
+
+/* Functions used to handle the MqttNet structure creation / destruction */
+int MqttClientNet_Init(MqttNet* net);
+int MqttClientNet_DeInit(MqttNet* net);
+#ifdef WOLFMQTT_SN
+int SN_ClientNet_Init(MqttNet* net);
+#endif
+
+#ifdef __cplusplus
+    } /* extern "C" */
+#endif
+
+#endif /* WOLFMQTT_NET_H */

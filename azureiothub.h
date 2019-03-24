@@ -1,4 +1,4 @@
-/* options.h
+/* azureiothub.h
  *
  * Copyright (C) 2006-2018 wolfSSL Inc.
  *
@@ -19,23 +19,12 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  */
 
+#ifndef WOLFMQTT_AZUREIOTHUB_H
+#define WOLFMQTT_AZUREIOTHUB_H
 
-/* default blank options for autoconf */
+#include "mqttexample.h"
 
-#ifndef WOLFMQTT_OPTIONS_H
-#define WOLFMQTT_OPTIONS_H
+/* Exposed functions */
+int azureiothub_test(MQTTCtx *mqttCtx);
 
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#define WOLFMQTT_NONBLOCK
-#define ENABLE_MQTT_TLS
-
-#ifdef __cplusplus
-}
-#endif
-
-
-#endif /* WOLFMQTT_OPTIONS_H */
+#endif /* WOLFMQTT_AZUREIOTHUB_H */
