@@ -61,12 +61,15 @@
 #include <wolfssl/wolfcrypt/coding.h>
 #include <wolfssl/wolfcrypt/hmac.h>
 
+#include "azure_iot_creds.h"
+
 #include "azureiothub.h"
 #include "examples/mqttexample.h"
 #include "examples/mqttnet.h"
 
 /* Locals */
 static int mStopRead = 0;
+static int received_message_count = 0;
 
 /* Configuration */
 /* Reference:
@@ -75,17 +78,17 @@ static int mStopRead = 0;
  * https://azure.microsoft.com/en-us/documentation/articles/iot-hub-sas-tokens/#using-sas-tokens-as-a-device
  */
 #define MAX_BUFFER_SIZE         1024    /* Maximum size for network read/write callbacks */
-#define AZURE_HOST              "wolfMQTT.azure-devices.net"
-#define AZURE_DEVICE_ID         "demoDevice"
-#define AZURE_KEY               "Vd8RHMAFPyRnAozkNCNFIPhVSffyZkB13r/YqiTWq5s=" /* Base64 Encoded */
-#define AZURE_QOS               MQTT_QOS_1 /* Azure IoT Hub does not yet support QoS level 2 */
-#define AZURE_KEEP_ALIVE_SEC    DEFAULT_KEEP_ALIVE_SEC
-#define AZURE_CMD_TIMEOUT_MS    DEFAULT_CMD_TIMEOUT_MS
+//#define AZURE_HOST              "wolfMQTT.azure-devices.net"
+//#define AZURE_DEVICE_ID         "demoDevice"
+//#define AZURE_KEY               "Vd8RHMAFPyRnAozkNCNFIPhVSffyZkB13r/YqiTWq5s=" /* Base64 Encoded */
+//#define AZURE_QOS               MQTT_QOS_1 /* Azure IoT Hub does not yet support QoS level 2 */
+//#define AZURE_KEEP_ALIVE_SEC    DEFAULT_KEEP_ALIVE_SEC
+//#define AZURE_CMD_TIMEOUT_MS    DEFAULT_CMD_TIMEOUT_MS
 #define AZURE_TOKEN_EXPIRY_SEC  (60 * 60 * 1) /* 1 hour */
 #define AZURE_TOKEN_SIZE        400
 
-#define AZURE_DEVICE_NAME       AZURE_HOST"/devices/"AZURE_DEVICE_ID
-#define AZURE_USERNAME          AZURE_HOST"/"AZURE_DEVICE_ID
+//#define AZURE_DEVICE_NAME       AZURE_HOST"/devices/"AZURE_DEVICE_ID
+//#define AZURE_USERNAME          AZURE_HOST"/"AZURE_DEVICE_ID
 #define AZURE_SIG_FMT           "%s\n%ld"
     /* [device name (URL Encoded)]\n[Expiration sec UTC] */
 #define AZURE_PASSWORD_FMT      "SharedAccessSignature sr=%s&sig=%s&se=%ld"
@@ -158,6 +161,7 @@ static int mqtt_message_cb(MqttClient *client, MqttMessage *msg,
 
     if (msg_done) {
         PRINTF("MQTT Message: Done");
+        ++received_message_count;
     }
 
     /* Return negative to terminate publish processing */
@@ -167,7 +171,8 @@ static int mqtt_message_cb(MqttClient *client, MqttMessage *msg,
 static int SasTokenCreate(char* sasToken, int sasTokenLen)
 {
     int rc;
-    const char* encodedKey = AZURE_KEY;
+    // vpetrigo: const char* encodedKey = AZURE_KEY;
+    const char* encodedKey = NULL;
     byte decodedKey[WC_SHA256_DIGEST_SIZE+1];
     word32 decodedKeyLen = (word32)sizeof(decodedKey);
     char deviceName[150]; /* uri */
@@ -199,7 +204,7 @@ static int SasTokenCreate(char* sasToken, int sasTokenLen)
     lTime += AZURE_TOKEN_EXPIRY_SEC;
 
     /* URL encode uri (device name) */
-    url_encode(mRfc3986, (byte*)AZURE_DEVICE_NAME, deviceName);
+    url_encode(mRfc3986, (byte*)AZURE_MQTT_USERNAME, deviceName);
 
     /* Build signature sting "uri \n expiration" */
     XSNPRINTF(sigData, sizeof(sigData), AZURE_SIG_FMT, deviceName, lTime);
@@ -241,7 +246,8 @@ static int SasTokenCreate(char* sasToken, int sasTokenLen)
 
 int azureiothub_test(MQTTCtx *mqttCtx)
 {
-    int rc = MQTT_CODE_SUCCESS, i;
+    int rc = MQTT_CODE_SUCCESS;
+    int i;
 
     switch (mqttCtx->stat)
     {
@@ -277,11 +283,12 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             mqttCtx->rx_buf = (byte*)WOLFMQTT_MALLOC(MAX_BUFFER_SIZE);
 
             /* init URL encode */
-            url_encoder_init();
+            // vpetrigo: url_encoder_init();
 
             /* build sas token for password */
-            rc = SasTokenCreate((char*)mqttCtx->app_ctx, AZURE_TOKEN_SIZE);
+            // vpetrigo: rc = SasTokenCreate((char*)mqttCtx->app_ctx, AZURE_TOKEN_SIZE);
             if (rc < 0) {
+                PRINTF("FAIL during WMQ_NET_INIT");
                 goto exit;
             }
 
@@ -346,8 +353,9 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             }
 
             /* Authentication */
-            mqttCtx->connect.username = AZURE_USERNAME;
-            mqttCtx->connect.password = (const char *)mqttCtx->app_ctx;
+            mqttCtx->connect.username = AZURE_MQTT_USERNAME;
+            // vpetrigo: mqttCtx->connect.password = (const char *)mqttCtx->app_ctx;
+            mqttCtx->connect.password = AZURE_MQTT_PASSWORD;
 
             FALL_THROUGH;
         }
@@ -463,6 +471,15 @@ int azureiothub_test(MQTTCtx *mqttCtx)
                 rc = mqtt_check_timeout(rc, &mqttCtx->start_sec,
                     mqttCtx->cmd_timeout_ms/1000);
             #endif
+
+                if (received_message_count > 0)
+                {
+                    // this condition is required only for checking with Valgrind
+                    // to have finite execution time
+                    rc = MQTT_CODE_SUCCESS;
+                    mqttCtx->stat = WMQ_DISCONNECT;
+                    break;
+                }
 
                 /* check return code */
                 if (rc == MQTT_CODE_CONTINUE) {
