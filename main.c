@@ -14,7 +14,7 @@ int main(void)
 {
     int rc;
     MQTTCtx mqttCtx;
-    char sasToken[] = AZURE_MQTT_PASSWORD;
+    char sasToken[400] = {0};
 
     /* init defaults */
     mqtt_init_ctx(&mqttCtx);

@@ -171,8 +171,7 @@ static int mqtt_message_cb(MqttClient *client, MqttMessage *msg,
 static int SasTokenCreate(char* sasToken, int sasTokenLen)
 {
     int rc;
-    // vpetrigo: const char* encodedKey = AZURE_KEY;
-    const char* encodedKey = NULL;
+    const char* encodedKey = AZURE_SHARED_KEY;
     byte decodedKey[WC_SHA256_DIGEST_SIZE+1];
     word32 decodedKeyLen = (word32)sizeof(decodedKey);
     char deviceName[150]; /* uri */
@@ -182,7 +181,7 @@ static int SasTokenCreate(char* sasToken, int sasTokenLen)
     word32 base64SigLen = (word32)sizeof(base64Sig);
     byte encodedSig[WC_SHA256_DIGEST_SIZE*4];
     long lTime;
-    Hmac hmac;
+    Hmac hmac = {0};
 
     if (sasToken == NULL) {
         return MQTT_CODE_ERROR_BAD_ARG;
@@ -283,10 +282,10 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             mqttCtx->rx_buf = (byte*)WOLFMQTT_MALLOC(MAX_BUFFER_SIZE);
 
             /* init URL encode */
-            // vpetrigo: url_encoder_init();
+            url_encoder_init();
 
             /* build sas token for password */
-            // vpetrigo: rc = SasTokenCreate((char*)mqttCtx->app_ctx, AZURE_TOKEN_SIZE);
+            rc = SasTokenCreate((char*)mqttCtx->app_ctx, AZURE_TOKEN_SIZE);
             if (rc < 0) {
                 PRINTF("FAIL during WMQ_NET_INIT");
                 goto exit;
