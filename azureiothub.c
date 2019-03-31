@@ -422,7 +422,7 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             mqttCtx->publish.retain = 0;
             mqttCtx->publish.qos = mqttCtx->qos;
             mqttCtx->publish.duplicate = 0;
-            mqttCtx->publish.topic_name = AZURE_EVENT_TOPIC;
+            mqttCtx->publish.topic_name = AZURE_DEV_TO_CLOUD_TOPIC;
             mqttCtx->publish.packet_id = mqtt_get_packetid();
             mqttCtx->publish.buffer = NULL;
             mqttCtx->publish.total_len = 0;
