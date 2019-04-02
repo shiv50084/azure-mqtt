@@ -359,7 +359,7 @@ static int mqtt_tls_verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
         /* The client.ctx was stored during MqttSocket_Connect. */
         mqttCtx = (MQTTCtx *)store->userCtx;
         XSTRNCPY(appName, " for ", PRINT_BUFFER_SIZE-1);
-        XSTRNCAT(appName, mqttCtx->app_name,
+        XSTRNCAT(appName, mqttCtx->app_name ? mqttCtx->app_name : "no app",
                  PRINT_BUFFER_SIZE-XSTRLEN(appName)-1);
     }
 
