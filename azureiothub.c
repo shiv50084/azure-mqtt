@@ -161,7 +161,7 @@ static int mqtt_message_cb(MqttClient *client, MqttMessage *msg,
 
     if (msg_done) {
         PRINTF("MQTT Message: Done");
-        ++received_message_count;
+        //++received_message_count;
     }
 
     /* Return negative to terminate publish processing */
@@ -353,8 +353,7 @@ int azureiothub_test(MQTTCtx *mqttCtx)
 
             /* Authentication */
             mqttCtx->connect.username = AZURE_MQTT_USERNAME;
-            // vpetrigo: mqttCtx->connect.password = (const char *)mqttCtx->app_ctx;
-            mqttCtx->connect.password = AZURE_MQTT_PASSWORD;
+            mqttCtx->connect.password = (const char *)mqttCtx->app_ctx;
 
             FALL_THROUGH;
         }
@@ -385,7 +384,9 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             /* Build list of topics */
             mqttCtx->topics[0].topic_filter = mqttCtx->topic_name;
             mqttCtx->topics[0].qos = mqttCtx->qos;
-
+            mqttCtx->topics[1].topic_filter = "$iothub/methods/POST/#";
+            mqttCtx->topics[1].qos = mqttCtx->qos;
+            PRINTF("MQTT Subscribe prep");
             /* Subscribe Topic */
             XMEMSET(&mqttCtx->subscribe, 0, sizeof(MqttSubscribe));
             mqttCtx->subscribe.packet_id = mqtt_get_packetid();
