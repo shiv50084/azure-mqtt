@@ -311,6 +311,7 @@ int azureiothub_test(MQTTCtx *mqttCtx)
                 goto exit;
             }
             mqttCtx->client.ctx = mqttCtx;
+            PRINTF("%s", ((MQTTCtx *)mqttCtx->client.ctx)->app_name);
 
             FALL_THROUGH;
         }
@@ -353,7 +354,8 @@ int azureiothub_test(MQTTCtx *mqttCtx)
 
             /* Authentication */
             mqttCtx->connect.username = AZURE_MQTT_USERNAME;
-            mqttCtx->connect.password = (const char *)mqttCtx->app_ctx;
+            //mqttCtx->connect.password = (const char *)mqttCtx->app_ctx;
+            mqttCtx->connect.password = AZURE_MQTT_PASSWORD;
 
             FALL_THROUGH;
         }
