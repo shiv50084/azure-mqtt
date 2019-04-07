@@ -105,7 +105,7 @@ extern "C" {
 #ifdef USE_FAST_MATH
 /* Maximum math bits (Max RSA key bits * 2) */
 #undef  FP_MAX_BITS
-#define FP_MAX_BITS     4096
+#define FP_MAX_BITS     8192
 #endif
 
 /* half as much memory but twice as slow */
@@ -435,6 +435,8 @@ extern "C" {
         #define WOLFSSL_DEBUG_MEMORY
     #endif
 #else
+//#define DEBUG_WOLFSSL
+#define WOLFSSL_STATIC_RSA
 #ifndef WOLFSSL_STATIC_MEMORY
 #define NO_WOLFSSL_MEMORY
 /* Otherwise we will use stdlib malloc, free and realloc */
@@ -586,7 +588,7 @@ extern "C" {
 //#define NO_INLINE
 
 #undef  NO_FILESYSTEM
-#define NO_FILESYSTEM
+//#define NO_FILESYSTEM
 
 #undef  NO_WRITEV
 #define NO_WRITEV
