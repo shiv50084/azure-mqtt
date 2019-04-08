@@ -22,6 +22,7 @@ int main(void)
     mqttCtx.clean_session = 1;
     mqttCtx.app_name = "azureiothub";
     mqttCtx.host = AZURE_IOT_HUB_NAME;
+    mqttCtx.port = 1883;
     mqttCtx.qos = MQTT_QOS_1;
     mqttCtx.keep_alive_sec = AZURE_KEEP_ALIVE_SEC;
     mqttCtx.client_id = AZURE_DEVICE_ID;
