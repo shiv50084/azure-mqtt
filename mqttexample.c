@@ -25,7 +25,7 @@
 #endif
 
 #include "wolfmqtt/mqtt_client.h"
-#include "examples/mqttexample.h"
+#include "mqttexample.h"
 #include "examples/mqttnet.h"
 
 
@@ -352,14 +352,14 @@ int mqtt_check_timeout(int rc, word32* start_sec, word32 timeout_sec)
 static int mqtt_tls_verify_cb(int preverify, WOLFSSL_X509_STORE_CTX* store)
 {
     char buffer[WOLFSSL_MAX_ERROR_SZ];
-    MQTTCtx *mqttCtx = NULL;
+    //MQTTCtx *mqttCtx = NULL;
     char appName[PRINT_BUFFER_SIZE] = {0};
 
     if (store->userCtx != NULL) {
         /* The client.ctx was stored during MqttSocket_Connect. */
-        mqttCtx = (MQTTCtx *)store->userCtx;
+        MQTTCtx *mqttCtx = (MQTTCtx *)store->userCtx;
         XSTRNCPY(appName, " for ", PRINT_BUFFER_SIZE-1);
-        XSTRNCAT(appName, mqttCtx->app_name ? mqttCtx->app_name : "no app",
+        XSTRNCAT(appName, mqttCtx->app_name,
                  PRINT_BUFFER_SIZE-XSTRLEN(appName)-1);
     }
 
