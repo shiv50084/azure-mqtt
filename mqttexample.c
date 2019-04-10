@@ -26,7 +26,7 @@
 
 #include "wolfmqtt/mqtt_client.h"
 #include "mqttexample.h"
-#include "examples/mqttnet.h"
+#include "mqttnet.h"
 
 
 /* locals */
