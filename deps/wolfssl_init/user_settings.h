@@ -559,7 +559,7 @@ extern "C" {
 #if 0
 #define SMALL_SESSION_CACHE
 #else
-#define NO_SESSION_CACHE
+#undef NO_SESSION_CACHE
 #endif
 
 
