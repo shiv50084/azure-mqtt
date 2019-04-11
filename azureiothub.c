@@ -99,9 +99,12 @@ static int received_message_count = 0;
 #define AZURE_MSGS_TOPIC_NAME   "devices/"AZURE_DEVICE_ID"/messages/devicebound/#" /* subscribe */
 #define AZURE_EVENT_TOPIC       "devices/"AZURE_DEVICE_ID"/messages/events/" /* publish */
 
-
+static WOLFSSL_SESSION *ssl_session_res = NULL;
 /* Encoding Support */
 static char mRfc3986[256] = {0};
+static int mqtt_connect_with_resumption(MqttClient *client, const char *host, word16 port, int timeout_ms, int use_tls,
+                                        MqttTlsCb cb);
+
 //static char mHtml5[256] = {0};
 static void url_encoder_init(void)
 {
@@ -285,7 +288,7 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             url_encoder_init();
 
             /* build sas token for password */
-            rc = SasTokenCreate((char*)mqttCtx->app_ctx, AZURE_TOKEN_SIZE);
+            //rc = SasTokenCreate((char*)mqttCtx->app_ctx, AZURE_TOKEN_SIZE);
             if (rc < 0) {
                 PRINTF("FAIL during WMQ_NET_INIT");
                 goto exit;
@@ -321,8 +324,11 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             mqttCtx->stat = WMQ_TCP_CONN;
 
             /* Connect to broker */
-            rc = MqttClient_NetConnect(&mqttCtx->client, mqttCtx->host, mqttCtx->port,
-                DEFAULT_CON_TIMEOUT_MS, mqttCtx->use_tls, mqtt_tls_cb);
+            while ((rc = mqtt_connect_with_resumption(&mqttCtx->client, mqttCtx->host, mqttCtx->port,
+                DEFAULT_CON_TIMEOUT_MS, mqttCtx->use_tls, mqtt_tls_cb)) == MQTT_CODE_CONTINUE)
+            {
+
+            }
             if (rc == MQTT_CODE_CONTINUE) {
                 return rc;
             }
@@ -365,7 +371,10 @@ int azureiothub_test(MQTTCtx *mqttCtx)
             mqttCtx->stat = WMQ_MQTT_CONN;
 
             /* Send Connect and wait for Connect Ack */
-            rc = MqttClient_Connect(&mqttCtx->client, &mqttCtx->connect);
+            while ((rc = MqttClient_Connect(&mqttCtx->client, &mqttCtx->connect)) == MQTT_CODE_CONTINUE)
+            {
+
+            }
             if (rc == MQTT_CODE_CONTINUE) {
                 return rc;
             }
@@ -452,7 +461,7 @@ int azureiothub_test(MQTTCtx *mqttCtx)
 
             FALL_THROUGH;
         }
-
+#if 0
         case WMQ_WAIT_MSG:
         {
             mqttCtx->stat = WMQ_WAIT_MSG;
@@ -480,12 +489,14 @@ int azureiothub_test(MQTTCtx *mqttCtx)
                     // to have finite execution time
                     rc = MQTT_CODE_SUCCESS;
                     mqttCtx->stat = WMQ_DISCONNECT;
+                    PRINTF("EXIT!");
                     break;
                 }
 
                 /* check return code */
                 if (rc == MQTT_CODE_CONTINUE) {
-                    return rc;
+                    //return rc;
+                    continue;
                 }
             #ifdef WOLFMQTT_ENABLE_STDIN_CAP
                 else if (rc == MQTT_CODE_STDIN_WAKE) {
@@ -540,9 +551,20 @@ int azureiothub_test(MQTTCtx *mqttCtx)
 
             FALL_THROUGH;
         }
-
+#endif
         case WMQ_DISCONNECT:
         {
+            /* Save the session */
+            ssl_session_res = wolfSSL_get_session(mqttCtx->client.tls.ssl);
+            if (ssl_session_res != NULL)
+            {
+                PRINTF("TLS session was stored successfully.");
+            }
+            else
+            {
+                PRINTF("Error occured during TLS session storing.");
+            }
+
             /* Disconnect */
             rc = MqttClient_Disconnect(&mqttCtx->client);
             if (rc == MQTT_CODE_CONTINUE) {
@@ -602,6 +624,224 @@ exit:
 
     return rc;
 }
+
+static int MqttSocket_TlsSocketReceive(WOLFSSL* ssl, char *buf, int sz,
+                                       void *ptr)
+{
+    int rc;
+    MqttClient *client = (MqttClient*)ptr;
+    (void)ssl; /* Not used */
+
+    rc = client->net->read(client->net->context, (byte*)buf, sz,
+                           client->tls.timeout_ms);
+
+    /* save network read response */
+    client->tls.sockRc = rc;
+
+    if (rc == 0 || rc == MQTT_CODE_ERROR_TIMEOUT || rc == MQTT_CODE_STDIN_WAKE
+        || rc == MQTT_CODE_CONTINUE) {
+        rc = WOLFSSL_CBIO_ERR_WANT_READ;
+    }
+    else if (rc < 0) {
+        rc = WOLFSSL_CBIO_ERR_GENERAL;
+    }
+    return rc;
+}
+
+static int MqttSocket_TlsSocketSend(WOLFSSL* ssl, char *buf, int sz,
+                                    void *ptr)
+{
+    int rc;
+    MqttClient *client = (MqttClient*)ptr;
+    (void)ssl; /* Not used */
+
+    rc = client->net->write(client->net->context, (byte*)buf, sz,
+                            client->tls.timeout_ms);
+
+    /* save network write response */
+    client->tls.sockRc = rc;
+
+    if (rc == 0 || rc == MQTT_CODE_ERROR_TIMEOUT || rc == MQTT_CODE_CONTINUE) {
+        rc = WOLFSSL_CBIO_ERR_WANT_WRITE;
+    }
+    else if (rc < 0) {
+        rc = WOLFSSL_CBIO_ERR_GENERAL;
+    }
+    return rc;
+}
+
+static int mqtt_connect_with_resumption(MqttClient *client, const char *host, word16 port, int timeout_ms, int use_tls,
+                                        MqttTlsCb cb)
+{
+    int rc = MQTT_CODE_SUCCESS;
+
+    /* Validate arguments */
+    if (client == NULL || client->net == NULL || client->net->connect == NULL)
+    {
+        return MQTT_CODE_ERROR_BAD_ARG;
+    }
+
+    if (((unsigned)client->flags & (unsigned)MQTT_CLIENT_FLAG_IS_CONNECTED) == 0)
+    {
+        /* Validate port */
+        if (port == 0)
+        {
+            port = (use_tls) ? MQTT_SECURE_PORT : MQTT_DEFAULT_PORT;
+        }
+
+        /* Connect to host */
+        rc = client->net->connect(client->net->context, host, port, timeout_ms);
+        if (rc < 0)
+        {
+            return rc;
+        }
+
+        client->flags |= MQTT_CLIENT_FLAG_IS_CONNECTED;
+    }
+
+    if (use_tls)
+    {
+        if (client->tls.ctx == NULL)
+        {
+#ifdef DEBUG_WOLFSSL
+            wolfSSL_Debugging_ON();
+#endif
+
+            /* Setup the WolfSSL library */
+            wolfSSL_Init();
+
+            /* Issue callback to allow setup of the wolfSSL_CTX and cert
+               verification settings */
+            rc = WOLFSSL_SUCCESS;
+            client->tls.ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+            if (client->tls.ctx == NULL) {
+                rc = -1;
+                goto exit;
+            }
+            wolfSSL_CTX_set_verify(client->tls.ctx, WOLFSSL_VERIFY_NONE, 0);
+            /* Set session caching */
+            wolfSSL_CTX_set_session_cache_mode(client->tls.ctx, SSL_SESS_CACHE_NO_AUTO_CLEAR);
+
+            if (cb)
+            {
+                rc = cb(client);
+            }
+            if (rc != WOLFSSL_SUCCESS)
+            {
+                rc = MQTT_CODE_ERROR_TLS_CONNECT;
+                goto exit;
+            }
+        }
+
+        /* Create and initialize the WOLFSSL_CTX structure */
+        if (client->tls.ctx == NULL)
+        {
+            /* Use defaults */
+            client->tls.ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
+            if (client->tls.ctx == NULL)
+            {
+                rc = -1;
+                goto exit;
+            }
+            wolfSSL_CTX_set_verify(client->tls.ctx, WOLFSSL_VERIFY_NONE, 0);
+        }
+
+#ifndef NO_DH
+        wolfSSL_CTX_SetMinDhKey_Sz(client->tls.ctx, WOLF_TLS_DHKEY_BITS_MIN);
+#endif
+
+        /* Setup the async IO callbacks */
+        wolfSSL_SetIORecv(client->tls.ctx, MqttSocket_TlsSocketReceive);
+        wolfSSL_SetIOSend(client->tls.ctx, MqttSocket_TlsSocketSend);
+
+        if (client->tls.ssl == NULL)
+        {
+            client->tls.ssl = wolfSSL_new(client->tls.ctx);
+
+            if (client->tls.ssl == NULL)
+            {
+                rc = -1;
+                goto exit;
+            }
+
+            /* Set up to resume the session */
+            if (ssl_session_res)
+            {
+                /* There is stored session. Try to restore */
+                if (wolfSSL_set_session(client->tls.ssl, ssl_session_res) != SSL_SUCCESS)
+                {
+                    PRINTF("ERROR: failed to set session.");
+                    rc = -1;
+                    goto exit;
+                }
+            }
+
+            wolfSSL_SetIOReadCtx(client->tls.ssl, (void *)client);
+            wolfSSL_SetIOWriteCtx(client->tls.ssl, (void *)client);
+#if !defined(WOLFMQTT_NO_TIMEOUT) && defined(WOLFMQTT_NONBLOCK)
+            wolfSSL_set_using_nonblock(client->tls.ssl, 1);
+#endif
+        }
+
+        if (client->ctx != NULL)
+        {
+            /* Store any app data for use by the tls verify callback*/
+            wolfSSL_SetCertCbCtx(client->tls.ssl, client->ctx);
+        }
+
+        rc = wolfSSL_connect(client->tls.ssl);
+        if (rc != WOLFSSL_SUCCESS)
+        {
+            goto exit;
+        }
+
+        if (ssl_session_res)
+        {
+            if (wolfSSL_session_reused(client->tls.ssl))
+            {
+                PRINTF("Session ID reused; Successful resume.");
+            }
+            else
+            {
+                PRINTF("Session ID NOT reused; Successful resume.");
+            }
+        }
+
+        client->flags |= MQTT_CLIENT_FLAG_IS_TLS;
+        rc = MQTT_CODE_SUCCESS;
+    }
+
+exit:
+    /* Handle error case */
+    if (rc)
+    {
+        const char *errstr = NULL;
+        int errnum = 0;
+        if (client->tls.ssl)
+        {
+            errnum = wolfSSL_get_error(client->tls.ssl, 0);
+            if ((errnum == WOLFSSL_ERROR_WANT_READ) || (errnum == WOLFSSL_ERROR_WANT_WRITE))
+            {
+                return MQTT_CODE_CONTINUE;
+            }
+            errstr = wolfSSL_ERR_reason_error_string(errnum);
+        }
+        PRINTF("MqttSocket_TlsConnect Error %d: Num %d, %s", rc, errnum, errstr);
+        /* Make sure we cleanup on error */
+        MqttSocket_Disconnect(client);
+
+        rc = MQTT_CODE_ERROR_TLS_CONNECT;
+    }
+    PRINTF("MqttSocket_Connect: Rc=%d", rc);
+
+    /* Check for error */
+    if (rc < 0)
+    {
+        rc = MQTT_CODE_ERROR_NETWORK;
+    }
+    return rc;
+}
+
 #endif /* ENABLE_AZUREIOTHUB_EXAMPLE */
 
 
