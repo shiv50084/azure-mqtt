@@ -32,9 +32,18 @@ int main(void)
     mqttCtx.use_tls = 1;
     mqttCtx.app_ctx = sasToken;
 
+    struct timespec start;
+    struct timespec end;
+
     do
     {
+        clock_gettime(CLOCK_MONOTONIC, &start);
         rc = azureiothub_test(&mqttCtx);
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        PRINTF("Connection establishing time: %ld us", (end.tv_sec - start.tv_sec) * 1000000 + (end.tv_nsec - start.tv_nsec) / 1000);
+        mqttCtx.stat = WMQ_BEGIN;
+        rc = MQTT_CODE_CONTINUE;
+        sleep(10);
     } while (rc == MQTT_CODE_CONTINUE);
 
     return (rc == 0) ? 0 : EXIT_FAILURE;
