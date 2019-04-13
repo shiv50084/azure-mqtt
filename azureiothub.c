@@ -733,19 +733,6 @@ static int mqtt_connect_with_resumption(MqttClient *client, const char *host, wo
             }
         }
 
-        /* Create and initialize the WOLFSSL_CTX structure */
-        if (client->tls.ctx == NULL)
-        {
-            /* Use defaults */
-            client->tls.ctx = wolfSSL_CTX_new(wolfTLSv1_2_client_method());
-            if (client->tls.ctx == NULL)
-            {
-                rc = -1;
-                goto exit;
-            }
-            wolfSSL_CTX_set_verify(client->tls.ctx, WOLFSSL_VERIFY_NONE, 0);
-        }
-
 #ifndef NO_DH
         wolfSSL_CTX_SetMinDhKey_Sz(client->tls.ctx, WOLF_TLS_DHKEY_BITS_MIN);
 #endif
